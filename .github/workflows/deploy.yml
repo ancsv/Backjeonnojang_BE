@@ -1,0 +1,68 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build with Gradle
+        run: ./gradlew clean build -x test
+
+      - name: Deploy to EC2
+        env:
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+          DB_URL: ${{ secrets.DB_URL }}
+          DB_USERNAME: ${{ secrets.DB_USERNAME }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+        run: |
+          echo "$EC2_SSH_KEY" > private_key.pem
+          chmod 600 private_key.pem
+          
+          scp -i private_key.pem -o StrictHostKeyChecking=no \
+            build/libs/*.jar $EC2_USER@$EC2_HOST:/home/ec2-user/
+          
+          ssh -i private_key.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST << 'EOF'
+            cd /home/ec2-user
+          
+            docker stop backjeon || true
+            docker rm backjeon || true
+          
+            cat > Dockerfile << 'DOCKER'
+
+          FROM eclipse-temurin:17-jdk-alpine
+          WORKDIR /app
+          COPY *.jar app.jar
+          EXPOSE 8080
+          ENTRYPOINT ["java", "-jar", "app.jar"]
+          DOCKER
+          
+            docker build -t backjeon-app .
+            
+            docker run -d -p 8080:8080 \
+              -e JWT_SECRET="$JWT_SECRET" \
+              -e DB_URL="$DB_URL" \
+              -e DB_USERNAME="$DB_USERNAME" \
+              -e DB_PASSWORD="$DB_PASSWORD" \
+              --name backjeon backjeon-app
+            
+            echo "Deployment completed!"
+          EOF
