@@ -26,46 +26,46 @@ public class MatchService {
         this.jwtProvider = jwtProvider;
     }
 
-    @Transactional(readOnly = true)  // ✅ 규칙 9
+    @Transactional(readOnly = true)  //규칙 9
     public List<MatchStatusResponseDto> getAllMatches() {
         return matchRepository.findAll()
                 .stream()
-                .map(MatchStatusResponseDto::from)  // ✅ 규칙 11
+                .map(MatchStatusResponseDto::from)  //규칙 11
                 .collect(Collectors.toList());
     }
 
-    @Transactional(readOnly = true)  // ✅ 규칙 9
+    @Transactional(readOnly = true)  //규칙 9
     public MatchStatusResponseDto getMatchById(Long matchId) {
         Match match = matchRepository.findById(matchId)
                 .orElseThrow(() -> new RuntimeException("Match not found with ID: " + matchId));
-        return MatchStatusResponseDto.from(match);  // ✅ 규칙 11
+        return MatchStatusResponseDto.from(match);  //규칙 11
     }
 
-    @Transactional(readOnly = true)  // ✅ 규칙 9
+    @Transactional(readOnly = true)  //규칙 9
     public MatchStatusResponseDto getMatchStatus(String token) {
         Long userId = getUserIdFromToken(token);
 
-        // ✅ 규칙 3: User 조회 불필요 (userId만 사용)
+        //규칙 3: User 조회 불필요 (userId만 사용)
         if (!userRepository.existsById(userId)) {
             throw new RuntimeException("User not found with ID: " + userId);
         }
 
-        Match match = matchRepository.findFirstByUserIdOrderByCreatedAtDesc(userId)  // ✅ 규칙 3
+        Match match = matchRepository.findFirstByUserIdOrderByCreatedAtDesc(userId)  //규칙 3
                 .orElseThrow(() -> new RuntimeException("Match not found for user"));
 
-        return MatchStatusResponseDto.from(match);  // ✅ 규칙 11
+        return MatchStatusResponseDto.from(match);  //규칙 11
     }
 
-    @Transactional  // ✅ 규칙 9
+    @Transactional  //규칙 9
     public String requestMatch(String token, String mode) {
         Long userId = getUserIdFromToken(token);
 
-        // ✅ 규칙 3: User 조회 불필요
+        //규칙 3: User 조회 불필요
         if (!userRepository.existsById(userId)) {
             throw new RuntimeException("User not found");
         }
 
-        Match match = Match.createMatch(userId, mode);  // ✅ 규칙 3, 10
+        Match match = Match.createMatch(userId, mode);  //규칙 3, 10
 
         matchRepository.save(match);
 
