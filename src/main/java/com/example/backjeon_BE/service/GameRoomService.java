@@ -3,7 +3,10 @@ package com.example.backjeon_BE.service;
 import com.example.backjeon_BE.dto.request.GameRoomRequestDto;
 import com.example.backjeon_BE.dto.response.GameRoomResponseDto;
 import com.example.backjeon_BE.entity.GameRoom;
+import com.example.backjeon_BE.entity.Match;
+import com.example.backjeon_BE.entity.User;
 import com.example.backjeon_BE.repository.GameRoomRepository;
+import com.example.backjeon_BE.repository.MatchRepository;
 import com.example.backjeon_BE.repository.UserRepository;
 import com.example.backjeon_BE.security.JwtProvider;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,12 +21,17 @@ public class GameRoomService {
 
     private final GameRoomRepository gameRoomRepository;
     private final UserRepository userRepository;
+    private final MatchRepository matchRepository;
     private final JwtProvider jwtProvider;
 
     @Autowired
-    public GameRoomService(GameRoomRepository gameRoomRepository, UserRepository userRepository, JwtProvider jwtProvider) {
+    public GameRoomService(GameRoomRepository gameRoomRepository,
+                           UserRepository userRepository,
+                           MatchRepository matchRepository,
+                           JwtProvider jwtProvider) {
         this.gameRoomRepository = gameRoomRepository;
         this.userRepository = userRepository;
+        this.matchRepository = matchRepository;
         this.jwtProvider = jwtProvider;
     }
 
@@ -57,6 +65,35 @@ public class GameRoomService {
 
         GameRoom savedGameRoom = gameRoomRepository.save(gameRoom);
         return GameRoomResponseDto.from(savedGameRoom);
+    }
+
+    // 게임방 참가자 검증 메서드
+    @Transactional(readOnly = true)
+    public boolean isParticipant(String roomId, String email) {
+        try {
+            Long roomIdLong = Long.parseLong(roomId);
+
+            //게임방 존재 여부 확인
+            if (!gameRoomRepository.existsById(roomIdLong)) {
+                return false;
+            }
+
+            //이메일로 User 조회
+            User user = userRepository.findByEmail(email).orElse(null);
+            if (user == null) {
+                return false;
+            }
+
+            //해당 roomId를 가진 Match들 조회
+            List<Match> matches = matchRepository.findByRoomId(roomIdLong);
+
+            //그 중에 현재 userId가 있는지 확인
+            return matches.stream()
+                    .anyMatch(match -> match.getUserId().equals(user.getId()));
+
+        } catch (NumberFormatException e) {
+            return false;
+        }
     }
 
     private Long getUserIdFromToken(String token) {
