@@ -16,17 +16,25 @@ import java.time.LocalDateTime;
 public class ChatController {
 
     private final SimpMessagingTemplate messagingTemplate;
-    private final GameRoomService gameRoomService;  // 추가!
+    private final GameRoomService gameRoomService;
+
+    private static final int MAX_MESSAGE_LENGTH = 500;
 
     @MessageMapping("/chat.sendMessage")
     public void sendMessage(@Payload ChatMessage chatMessage, Principal principal) {
+        // Principal은 항상 존재 (JWT 검증 통과했으니까)
         String email = principal.getName();
 
-        // 게임방 참가자 검증!
+        // 게임방 참가자 검증
         if (!gameRoomService.isParticipant(chatMessage.getRoomId(), email)) {
             throw new RuntimeException("해당 게임방의 참가자가 아닙니다");
         }
 
+        // 메시지 검증 및 XSS 방지
+        String validatedMessage = validateAndSanitizeMessage(chatMessage.getMessage());
+        chatMessage.setMessage(validatedMessage);
+
+        // sender 서버에서 설정
         chatMessage.setSender(email);
         chatMessage.setTimestamp(LocalDateTime.now());
 
@@ -70,5 +78,37 @@ public class ChatController {
                 "/topic/game/" + chatMessage.getRoomId(),
                 chatMessage
         );
+    }
+
+    private String validateAndSanitizeMessage(String message) {
+        if (message == null) {
+            throw new RuntimeException("메시지는 필수입니다");
+        }
+
+        String trimmedMessage = message.trim();
+        if (trimmedMessage.isEmpty()) {
+            throw new RuntimeException("빈 메시지는 전송할 수 없습니다");
+        }
+
+        if (trimmedMessage.length() > MAX_MESSAGE_LENGTH) {
+            throw new RuntimeException("메시지는 " + MAX_MESSAGE_LENGTH + "자 이하로 입력해주세요");
+        }
+
+        String sanitized = sanitizeHtml(trimmedMessage);
+        return sanitized;
+    }
+
+    private String sanitizeHtml(String message) {
+        if (message == null) {
+            return null;
+        }
+
+        return message
+                .replaceAll("<", "&lt;")
+                .replaceAll(">", "&gt;")
+                .replaceAll("\"", "&quot;")
+                .replaceAll("'", "&#x27;")
+                .replaceAll("&", "&amp;")
+                .replaceAll("/", "&#x2F;");
     }
 }

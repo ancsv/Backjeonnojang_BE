@@ -47,6 +47,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                 if (StompCommand.CONNECT.equals(accessor.getCommand())) {
                     String token = accessor.getFirstNativeHeader("Authorization");
 
+                    // 토큰 없으면 연결 차단
                     if (token == null || !token.startsWith("Bearer ")) {
                         throw new RuntimeException("인증 토큰이 필요합니다");
                     }
