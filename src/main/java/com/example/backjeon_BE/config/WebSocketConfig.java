@@ -75,10 +75,10 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                     if (destination != null && destination.startsWith("/topic/game/")) {
                         String roomId = destination.replace("/topic/game/", "");
 
-                        // [인가 체크] 이 사용자가 진짜 이 방의 참가자인가?
-                        if (!gameRoomService.isParticipant(roomId, email)) {
-                            throw new RuntimeException("해당 게임방의 구독 권한이 없습니다. (도청 차단)");
-                        }
+//                        // [인가 체크] 이 사용자가 진짜 이 방의 참가자인가?
+//                        if (!gameRoomService.isParticipant(roomId, email)) {
+//                            throw new RuntimeException("해당 게임방의 구독 권한이 없습니다. (도청 차단)");
+//                        }
                     }
                 }
                 return message;
