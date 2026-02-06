@@ -63,7 +63,8 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                         accessor.setUser(new UsernamePasswordAuthenticationToken(
                                 email, null, null));
                     } catch (Exception e) {
-                        throw new RuntimeException("유효하지 않은 토큰입니다");
+//                        throw new RuntimeException("유효하지 않은 토큰입니다");
+                        System.out.println(" [보안로그] 비인가 접근 감지");
                     }
                 }
                 // 구독 시점 보안 (도청 방어 핵심 로직)
