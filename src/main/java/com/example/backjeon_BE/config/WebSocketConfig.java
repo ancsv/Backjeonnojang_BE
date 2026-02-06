@@ -68,17 +68,25 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                 }
                 // 구독 시점 보안 (도청 방어 핵심 로직)
                 else if (StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
-                    String destination = accessor.getDestination(); // 예: /topic/game/room123
-                    String email = accessor.getUser().getName();    // 위에서 인증된 이메일
+                    String destination = accessor.getDestination();
 
-                    // 주소에서 roomId 추출 (방 주소 형식이 /topic/game/{roomId} 인 경우)
+                    System.out.println("=== 구독 시도 Destination: " + destination);
+
                     if (destination != null && destination.startsWith("/topic/game/")) {
-                        String roomId = destination.replace("/topic/game/", "");
+                        // roomId 추출 시 뒤에 붙은 쿼리 파라미터 등이 있을 수 있으므로 정교하게 추출
+                        String roomId = destination.substring("/topic/game/".length());
 
-//                        // [인가 체크] 이 사용자가 진짜 이 방의 참가자인가?
-//                        if (!gameRoomService.isParticipant(roomId, email)) {
-//                            throw new RuntimeException("해당 게임방의 구독 권한이 없습니다. (도청 차단)");
-//                        }
+                        // 유저 정보 확인
+                        if (accessor.getUser() == null) {
+                            throw new RuntimeException("인증 정보가 없습니다.");
+                        }
+                        String email = accessor.getUser().getName();
+
+                        // 인가 체크
+                        if (!gameRoomService.isParticipant(roomId, email)) {
+                            System.out.println("!!! 도청 차단 발생 - 유저: " + email + ", 방: " + roomId);
+                            throw new RuntimeException("구독 권한 없음");
+                        }
                     }
                 }
                 return message;
