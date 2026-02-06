@@ -1,6 +1,8 @@
 package com.example.backjeon_BE.config;
 
 import com.example.backjeon_BE.security.JwtProvider;
+import com.example.backjeon_BE.service.GameRoomService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.Message;
@@ -18,10 +20,11 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 
 @Configuration
 @EnableWebSocketMessageBroker
+@RequiredArgsConstructor
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
-    @Autowired
     private JwtProvider jwtProvider;
+    private final GameRoomService gameRoomService;
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry config) {
@@ -61,6 +64,21 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                                 email, null, null));
                     } catch (Exception e) {
                         throw new RuntimeException("유효하지 않은 토큰입니다");
+                    }
+                }
+                // 구독 시점 보안 (도청 방어 핵심 로직)
+                else if (StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
+                    String destination = accessor.getDestination(); // 예: /topic/game/room123
+                    String email = accessor.getUser().getName();    // 위에서 인증된 이메일
+
+                    // 주소에서 roomId 추출 (방 주소 형식이 /topic/game/{roomId} 인 경우)
+                    if (destination != null && destination.startsWith("/topic/game/")) {
+                        String roomId = destination.replace("/topic/game/", "");
+
+                        // [인가 체크] 이 사용자가 진짜 이 방의 참가자인가?
+                        if (!gameRoomService.isParticipant(roomId, email)) {
+                            throw new RuntimeException("해당 게임방의 구독 권한이 없습니다. (도청 차단)");
+                        }
                     }
                 }
                 return message;

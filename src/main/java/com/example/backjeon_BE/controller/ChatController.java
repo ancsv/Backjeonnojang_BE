@@ -24,11 +24,14 @@ public class ChatController {
     public void sendMessage(@Payload ChatMessage chatMessage, Principal principal) {
         String email = principal != null ? principal.getName() : "익명";  // ← null 체크 추가!
 
-//    // 게임방 참가자 검증
-//    if (!gameRoomService.isParticipant(chatMessage.getRoomId(), email)) {
-//        throw new RuntimeException("해당 게임방의 참가자가 아닙니다");
-//    }
+    // 게임방 참가자 검증(send, join, leave에 다 설정, 사칭 및 XSS공격 완전 방어)
+    if (!gameRoomService.isParticipant(chatMessage.getRoomId(), email)) {
+        throw new RuntimeException("해당 게임방의 참가자가 아닙니다");
+    }
 
+        // 2단계: 메시지 정제 (XSS 방어 핵심)
+        // 참가자 검증을 통과한 '정상적인 사용자'가 보낸 메시지라도
+        // 여기서 <script> 태그 같은 독을 제거
         String validatedMessage = validateAndSanitizeMessage(chatMessage.getMessage());
         chatMessage.setMessage(validatedMessage);
         chatMessage.setSender(email);
@@ -44,9 +47,9 @@ public class ChatController {
     public void joinRoom(@Payload ChatMessage chatMessage, Principal principal) {
         String email = principal != null ? principal.getName() : "익명";  // ← null 체크 추가!
 
-//    if (!gameRoomService.isParticipant(chatMessage.getRoomId(), email)) {  // ← 주석 처리!
-//        throw new RuntimeException("해당 게임방의 참가자가 아닙니다");
-//    }
+    if (!gameRoomService.isParticipant(chatMessage.getRoomId(), email)) {  // ← 주석 처리!
+        throw new RuntimeException("해당 게임방의 참가자가 아닙니다");
+    }
 
         chatMessage.setSender(email);
         chatMessage.setType(ChatMessage.MessageType.JOIN);
@@ -62,9 +65,9 @@ public class ChatController {
     public void leaveRoom(@Payload ChatMessage chatMessage, Principal principal) {
         String email = principal != null ? principal.getName() : "익명";  // ← null 체크 추가!
 
-//    if (!gameRoomService.isParticipant(chatMessage.getRoomId(), email)) {  // ← 주석 처리!
-//        throw new RuntimeException("해당 게임방의 참가자가 아닙니다");
-//    }
+    if (!gameRoomService.isParticipant(chatMessage.getRoomId(), email)) {  // ← 주석 처리!
+        throw new RuntimeException("해당 게임방의 참가자가 아닙니다");
+    }
 
         chatMessage.setSender(email);
         chatMessage.setType(ChatMessage.MessageType.LEAVE);
