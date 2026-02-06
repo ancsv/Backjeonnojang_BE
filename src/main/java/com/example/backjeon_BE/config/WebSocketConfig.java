@@ -67,29 +67,29 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                         System.out.println(" [보안로그] 비인가 접근 감지");
                     }
                 }
-                // 구독 시점 보안 (도청 방어 핵심 로직)
-                else if (StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
-                    String destination = accessor.getDestination();
-
-                    System.out.println("=== 구독 시도 Destination: " + destination);
-
-                    if (destination != null && destination.startsWith("/topic/game/")) {
-                        // roomId 추출 시 뒤에 붙은 쿼리 파라미터 등이 있을 수 있으므로 정교하게 추출
-                        String roomId = destination.substring("/topic/game/".length());
-
-                        // 유저 정보 확인
-                        if (accessor.getUser() == null) {
-                            throw new RuntimeException("인증 정보가 없습니다.");
-                        }
-                        String email = accessor.getUser().getName();
-
-                        // 인가 체크
-                        if (!gameRoomService.isParticipant(roomId, email)) {
-                            System.out.println("도청 차단 발생 - 유저: " + email + ", 방: " + roomId);
+//                // 구독 시점 보안 (도청 방어 핵심 로직)
+//                else if (StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
+//                    String destination = accessor.getDestination();
+//
+//                    System.out.println("=== 구독 시도 Destination: " + destination);
+//
+//                    if (destination != null && destination.startsWith("/topic/game/")) {
+//                        // roomId 추출 시 뒤에 붙은 쿼리 파라미터 등이 있을 수 있으므로 정교하게 추출
+//                        String roomId = destination.substring("/topic/game/".length());
+//
+//                        // 유저 정보 확인
+//                        if (accessor.getUser() == null) {
+//                            throw new RuntimeException("인증 정보가 없습니다.");
+//                        }
+//                        String email = accessor.getUser().getName();
+//
+//                        // 인가 체크
+//                        if (!gameRoomService.isParticipant(roomId, email)) {
+//                            System.out.println("도청 차단 발생 - 유저: " + email + ", 방: " + roomId);
 //                            throw new RuntimeException("구독 권한 없음");
-                        }
-                    }
-                }
+//                        }
+//                    }
+//                }
                 return message;
             }
         });
