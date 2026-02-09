@@ -79,9 +79,17 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
                         // [수정] 권한이 없어도 에러를 던지지 않고 로그만 출력!
                         if (!gameRoomService.isParticipant(roomId, email)) {
-                            System.out.println("⚠️ [보안경고] 비인가 사용자 접속 시도 차단 안 함(시연용): " + email);
-                            // throw new RuntimeException("구독 권한 없음");  <-- 이 줄을 주석 처리하세요!
-                        } else {
+                            System.out.println("❌ [보안] 인가 실패! 세션 종료 시도: " + email);
+
+                            // 1. 강제로 세션 끊기 위한 정보 추출
+                            String sessionId = accessor.getSessionId();
+
+                            // 2. 예외를 던지기 전에 세션 속성이나 상태를 무효화 (가장 확실한 방법)
+                            accessor.setLeaveMutable(true);
+
+                            // 3. 에러 메시지와 함께 예외 던지기
+                            throw new RuntimeException("인가되지 않은 사용자입니다. 연결을 종료합니다.");
+                        }else {
                             System.out.println("✅ [승인] 정당한 사용자 접속");
                         }
                     }
