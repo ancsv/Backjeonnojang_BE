@@ -33,12 +33,21 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of("http://localhost:3000", "http://localhost:8080" ,"http://localhost:63342"));
+
+        // 1. 도메인을 직접 적기보다 패턴으로 모든 출처 허용 (시연용으로 가장 안전)
+        config.setAllowedOriginPatterns(List.of("*"));
+
+        // 2. 모든 HTTP 메서드 허용 (GET, POST, OPTIONS 등)
         config.setAllowedMethods(List.of("*"));
+
+        // 3. 모든 헤더 허용
         config.setAllowedHeaders(List.of("*"));
+
+        // 4. 자격 증명(Cookie, Auth Header 등) 허용
         config.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        // 5. 모든 경로(/**)에 대해 위 설정 적용
         source.registerCorsConfiguration("/**", config);
         return source;
     }
