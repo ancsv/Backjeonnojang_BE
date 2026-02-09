@@ -68,39 +68,21 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                 // 구독 시점 보안 (도청 방어 핵심 로직)
                 else if (StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
                     String destination = accessor.getDestination();
-                    if (destination != null && destination.startsWith("/topic/game/")) {
-                        // 1. 방 정보 추출
-                        String extractedRoomId = destination.substring("/topic/game/".length()).trim();
-                        String numericId = extractedRoomId.replaceAll("[^0-9]", ""); // 숫자만 추출 (예: "1")
 
-                        // 2. 세션에서 이메일 가져오기
+                    if (destination != null && destination.startsWith("/topic/game/")) {
+                        // 1. 방 번호 추출
+                        String roomId = destination.substring("/topic/game/".length()).replaceAll("[^0-9]", "");
+
+                        // 2. 이메일 추출
                         String email = (String) accessor.getSessionAttributes().get("userEmail");
 
-                        if (email == null) {
-                            System.out.println("🚨 [차단] 인증 정보 없음");
-                            throw new RuntimeException("인증 정보가 없습니다.");
+                        // 3. 권한 검증 (DB 조회)
+                        if (email == null || !gameRoomService.isParticipant(roomId, email)) {
+                            System.out.println("🚨 [차단] 권한 없음: " + email);
+                            throw new RuntimeException("권한이 없습니다.");
                         }
 
-                        // 3. DB에서 실제 유저 ID 확인 (로그 확인용 핵심 로직)
-                        // userRepository가 주입되어 있어야 합니다.
-                        User user = userRepository.findByEmail(email).orElse(null);
-                        if (user != null) {
-                            System.out.println("🆔 [ID 대조] 유저: " + email + " | DB ID: " + user.getId() + " | 시도방 ID: " + numericId);
-                        }
-
-                        System.out.println("🧐 [인가 검증] 추출된방: " + extractedRoomId + " -> DB조회ID: " + numericId);
-
-                        // 4. DB 조회 (참여 여부 확인)
-                        boolean isMember = gameRoomService.isParticipant(numericId, email);
-
-                        // 5. 최종 판정
-                        if (isMember) {
-                            System.out.println("✅ [승인] 접속 허용: " + email);
-                        } else {
-                            // 여기가 실행된다면 DB의 game_match 테이블에 위에서 찍힌 ID값이 없는 것입니다.
-                            System.out.println("🚨 [차단] 권한 없음 (도청 감지): " + email + " | 방: " + extractedRoomId);
-                            throw new RuntimeException("해당 방에 대한 권한이 없습니다.");
-                        }
+                        System.out.println("✅ [승인]: " + email);
                     }
                 }
                 return message;
