@@ -85,7 +85,6 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 //
 //                        // 인가 체크
 //                        if (!gameRoomService.isParticipant(roomId, email)) {
-//                            System.out.println("도청 차단 발생 - 유저: " + email + ", 방: " + roomId);
 //                            throw new RuntimeException("구독 권한 없음");
 //                        }
 //                    }

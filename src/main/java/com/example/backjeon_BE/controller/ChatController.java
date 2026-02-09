@@ -22,7 +22,9 @@ public class ChatController {
 
     @MessageMapping("/chat.sendMessage")
     public void sendMessage(@Payload ChatMessage chatMessage, Principal principal) {
-        String email = principal != null ? principal.getName() : "익명";  // ← null 체크 추가!
+        String email = principal != null ? principal.getName() : "익명";
+        String displayName = email.split("@")[0];  // test2@test.com → test2
+        chatMessage.setSender(displayName);
 
     // 게임방 참가자 검증(send, join, leave에 다 설정, 사칭 및 XSS공격 완전 방어)
 //    if (!gameRoomService.isParticipant(chatMessage.getRoomId(), email)) {
@@ -45,9 +47,9 @@ public class ChatController {
 
     @MessageMapping("/chat.join")
     public void joinRoom(@Payload ChatMessage chatMessage, Principal principal) {
-        String email = principal != null ? principal.getName() : "익명";  // ← null 체크 추가!
+        String email = principal != null ? principal.getName() : "익명";
 
-//    if (!gameRoomService.isParticipant(chatMessage.getRoomId(), email)) {  // ← 주석 처리!
+//    if (!gameRoomService.isParticipant(chatMessage.getRoomId(), email)) {  //
 //        throw new RuntimeException("해당 게임방의 참가자가 아닙니다");
 //    }
 
@@ -63,9 +65,9 @@ public class ChatController {
 
     @MessageMapping("/chat.leave")
     public void leaveRoom(@Payload ChatMessage chatMessage, Principal principal) {
-        String email = principal != null ? principal.getName() : "익명";  // ← null 체크 추가!
+        String email = principal != null ? principal.getName() : "익명";
 
-//    if (!gameRoomService.isParticipant(chatMessage.getRoomId(), email)) {  // ← 주석 처리!
+//    if (!gameRoomService.isParticipant(chatMessage.getRoomId(), email)) {  //
 //        throw new RuntimeException("해당 게임방의 참가자가 아닙니다");
 //    }
 
