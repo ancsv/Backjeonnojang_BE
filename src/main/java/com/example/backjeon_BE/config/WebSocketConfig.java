@@ -44,49 +44,58 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         registration.interceptors(new ChannelInterceptor() {
             @Override
             public Message<?> preSend(Message<?> message, MessageChannel channel) {
-                StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
+                StompHeaderAccessor accessor =
+                        MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
 
                 if (StompCommand.CONNECT.equals(accessor.getCommand())) {
                     String token = accessor.getFirstNativeHeader("Authorization");
-                    if (token != null && token.startsWith("Bearer ")) {
-                        try {
-                            token = token.substring(7);
-                            String email = jwtProvider.getEmailFromToken(token);
 
-                            // 1. 시큐리티 컨텍스트 설정
-                            UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(email, null, null);
-                            accessor.setUser(auth);
+                    // 토큰 없으면 연결 차단
+                    if (token == null || !token.startsWith("Bearer ")) {
+                        throw new RuntimeException("인증 토큰이 필요합니다");
+                    }
 
-                            // 2. [중요] 세션 속성에 이메일 직접 저장 (유실 방지용)
-                            accessor.getSessionAttributes().put("userEmail", email);
+                    token = token.substring(7);
+                    try {
+                        String email = jwtProvider.getEmailFromToken(token);
+                        Long userId = jwtProvider.getUserIdFromToken(token);
 
-                            System.out.println("✅ [연결 승인] 유저: " + email);
-                        } catch (Exception e) {
-                            System.out.println("❌ [연결 거부] 토큰 에러: " + e.getMessage());
-                            throw new RuntimeException("Auth Error");
-                        }
+                        accessor.setUser(new UsernamePasswordAuthenticationToken(
+                                email, null, null));
+                    } catch (Exception e) {
+//                        throw new RuntimeException("유효하지 않은 토큰입니다");
+                        System.out.println(" [보안로그] 비인가 접근 감지");
                     }
                 }
+                // 구독 시점 보안 (도청 방어 핵심 로직)
                 else if (StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
                     String destination = accessor.getDestination();
+
                     if (destination != null && destination.startsWith("/topic/game/")) {
-                        String roomId = destination.substring("/topic/game/".length());
+                        // 1. roomId 추출 및 공백 제거(trim)
+                        String roomId = destination.substring("/topic/game/".length()).trim();
 
-                        // 세션 속성에서 이메일 꺼내기 (accessor.getUser()가 null일 때를 대비)
+                        // 2. 이메일 추출 (세션 속성 우선, 없으면 User 객체에서)
                         String email = (String) accessor.getSessionAttributes().get("userEmail");
-
                         if (email == null && accessor.getUser() != null) {
                             email = accessor.getUser().getName();
                         }
 
-                        System.out.println("🧐 [인가 체크] 방: " + roomId + " | 유저: " + email);
+                        // 3. 로그 출력 (문자열 대조 확인용)
+                        System.out.println("🧐 [최종대조] 방ID: [" + roomId + "] | 이메일: [" + (email != null ? email.trim() : "null") + "]");
 
-                        // DB 체크
-                        if (email == null || !gameRoomService.isParticipant(roomId, email)) {
-                            System.out.println("🚨 [차단] 비인가 접근! 방: " + roomId + " | 유저: " + email);
-                            throw new RuntimeException("No Permission");
+                        // 4. 인증/인가 체크
+                        if (email == null) {
+                            System.out.println("❌ [차단] 인증 정보 없음");
+                            throw new RuntimeException("인증 정보가 없습니다.");
                         }
-                        System.out.println("⭕ [구독 완료] " + email + " 님이 " + roomId + "에 입장");
+
+                        if (!gameRoomService.isParticipant(roomId, email.trim())) {
+                            System.out.println("🚨 [차단] 인가 실패: DB 명단에 없음");
+                            throw new RuntimeException("구독 권한 없음");
+                        }
+
+                        System.out.println("✅ [승인] 정상 구독 완료");
                     }
                 }
                 return message;
