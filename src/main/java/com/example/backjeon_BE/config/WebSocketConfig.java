@@ -1,7 +1,9 @@
 package com.example.backjeon_BE.config;
 
+import com.example.backjeon_BE.entity.User;
 import com.example.backjeon_BE.security.JwtProvider;
 import com.example.backjeon_BE.service.GameRoomService;
+import com.example.backjeon_BE.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Configuration;
@@ -25,6 +27,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     private final JwtProvider jwtProvider;
     private final GameRoomService gameRoomService;
+    private final UserRepository userRepository;
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry config) {
@@ -66,34 +69,36 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                 else if (StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
                     String destination = accessor.getDestination();
                     if (destination != null && destination.startsWith("/topic/game/")) {
-                        String roomId = destination.substring("/topic/game/".length()).trim();
+                        // 1. 방 정보 추출
+                        String extractedRoomId = destination.substring("/topic/game/".length()).trim();
+                        String numericId = extractedRoomId.replaceAll("[^0-9]", ""); // 숫자만 추출 (예: "1")
 
-                        // 위에서 저장한 세션 속성에서 이메일을 가져옵니다.
+                        // 2. 세션에서 이메일 가져오기
                         String email = (String) accessor.getSessionAttributes().get("userEmail");
 
-                        System.out.println("🧐 [검증 시작] 방: " + roomId + " | 유저: " + email);
-
                         if (email == null) {
+                            System.out.println("🚨 [차단] 인증 정보 없음");
                             throw new RuntimeException("인증 정보가 없습니다.");
                         }
-                        // 1. 중복을 피하기 위해 이름을 'extractedRoomId'로 변경
-                        String extractedRoomId = destination.substring("/topic/game/".length()).trim();
 
-// 2. 숫자만 추출 (numericId)
-                        String numericId = extractedRoomId.replaceAll("[^0-9]", "");
+                        // 3. DB에서 실제 유저 ID 확인 (로그 확인용 핵심 로직)
+                        // userRepository가 주입되어 있어야 합니다.
+                        User user = userRepository.findByEmail(email).orElse(null);
+                        if (user != null) {
+                            System.out.println("🆔 [ID 대조] 유저: " + email + " | DB ID: " + user.getId() + " | 시도방 ID: " + numericId);
+                        }
 
-// 3. 로그 출력 (검증용)
                         System.out.println("🧐 [인가 검증] 추출된방: " + extractedRoomId + " -> DB조회ID: " + numericId);
 
-// 4. DB 조회 (오직 DB 결과로만 판단)
+                        // 4. DB 조회 (참여 여부 확인)
                         boolean isMember = gameRoomService.isParticipant(numericId, email);
 
-// 5. 최종 로직: 하드코딩 없이 isMember만 남기기
+                        // 5. 최종 판정
                         if (isMember) {
                             System.out.println("✅ [승인] 접속 허용: " + email);
                         } else {
-                            // 이제 attacker가 남의 방(room_1)에 들어오면 여기서 튕깁니다.
-                            System.out.println("🚨 [차단] 도청 시도 감지: " + email + " | 방: " + extractedRoomId);
+                            // 여기가 실행된다면 DB의 game_match 테이블에 위에서 찍힌 ID값이 없는 것입니다.
+                            System.out.println("🚨 [차단] 권한 없음 (도청 감지): " + email + " | 방: " + extractedRoomId);
                             throw new RuntimeException("해당 방에 대한 권한이 없습니다.");
                         }
                     }
