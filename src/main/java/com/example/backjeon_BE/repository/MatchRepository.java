@@ -12,4 +12,5 @@ public interface MatchRepository extends JpaRepository<Match, Long> {
 
     Optional<Match> findFirstByUserIdOrderByCreatedAtDesc(Long userId);
     List<Match> findByRoomId(Long roomId);
+    boolean existsByRoomIdAndUserId(Long roomId, Long userId);
 }

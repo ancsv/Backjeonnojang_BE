@@ -73,25 +73,15 @@ public class GameRoomService {
         try {
             Long roomIdLong = Long.parseLong(roomId);
 
-            //게임방 존재 여부 확인
-            if (!gameRoomRepository.existsById(roomIdLong)) {
-                return false;
-            }
-
-            //이메일로 User 조회
+            // 1. 이메일로 유저 찾기
             User user = userRepository.findByEmail(email).orElse(null);
-            if (user == null) {
-                return false;
-            }
+            if (user == null) return false;
 
-            //해당 roomId를 가진 Match들 조회
-            List<Match> matches = matchRepository.findByRoomId(roomIdLong);
+            // 2. DB에 직접 물어보기 (매우 정확함)
+            // Match 테이블에 roomIdLong과 user.getId()가 동시에 있는 행이 있는지 확인
+            return matchRepository.existsByRoomIdAndUserId(roomIdLong, user.getId());
 
-            //그 중에 현재 userId가 있는지 확인
-            return matches.stream()
-                    .anyMatch(match -> match.getUserId().equals(user.getId()));
-
-        } catch (NumberFormatException e) {
+        } catch (Exception e) {
             return false;
         }
     }
