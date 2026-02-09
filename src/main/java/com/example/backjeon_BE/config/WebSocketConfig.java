@@ -77,14 +77,17 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                             throw new RuntimeException("인증 정보가 없습니다.");
                         }
 
-                        // 4. 인가 체크 (이미 코드에 있는 gameRoomService.isParticipant를 사용하세요)
-                        boolean isMember = gameRoomService.isParticipant(roomId, email); // 변수 선언
+                        // 4. 인가 체크 (실제 서비스 버전)
+                        boolean isMember = gameRoomService.isParticipant(roomId, email);
 
-                        if (email.equals("test2@test.com") || email.equals("user2@test.com") || isMember) {
+                        if (isMember) {
+                            // DB에 이 방과 이 유저의 매칭 정보가 있을 때만 통과
                             System.out.println("✅ [승인] 정상 사용자 접속: " + email);
+                            return message;
                         } else {
-                            System.out.println("🚨 [차단] 비인가 접근 시도! 유저: " + email + " | 방: " + roomId);
-                            throw new RuntimeException("구독 권한이 없습니다.");
+                            // 그 외의 모든 경우(공격자, 다른 방 유저 등)는 가차 없이 차단
+                            System.out.println("🚨 [차단] 권한 없음! 유저: " + email + " | 방: " + roomId);
+                            throw new RuntimeException("해당 방에 대한 구독 권한이 없습니다.");
                         }
                     }
                 }
