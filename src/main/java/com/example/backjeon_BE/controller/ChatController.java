@@ -23,9 +23,8 @@ public class ChatController {
     @MessageMapping("/chat.sendMessage")
     public void sendMessage(@Payload ChatMessage chatMessage, Principal principal) {
         String email = principal != null ? principal.getName() : "익명";
-        String displayName = email.split("@")[0];
 
-    // 게임방 참가자 검증(send, join, leave에 다 설정, 사칭 및 XSS공격 완전 방어)
+        // 게임방 참가자 검증(send, join, leave에 다 설정, 사칭 및 XSS공격 완전 방어)
 //    if (!gameRoomService.isParticipant(chatMessage.getRoomId(), email)) {
 //        throw new RuntimeException("해당 게임방의 참가자가 아닙니다");
 //    }
@@ -35,7 +34,7 @@ public class ChatController {
         // 여기서 <script> 태그 같은 독을 제거
         String validatedMessage = validateAndSanitizeMessage(chatMessage.getMessage());
         chatMessage.setMessage(validatedMessage);
-        chatMessage.setSender(displayName);
+        chatMessage.setSender(email);  // 이메일 전체!
         chatMessage.setTimestamp(LocalDateTime.now());
 
         messagingTemplate.convertAndSend(
@@ -47,13 +46,12 @@ public class ChatController {
     @MessageMapping("/chat.join")
     public void joinRoom(@Payload ChatMessage chatMessage, Principal principal) {
         String email = principal != null ? principal.getName() : "익명";
-        String displayName = email.split("@")[0];
 
 //    if (!gameRoomService.isParticipant(chatMessage.getRoomId(), email)) {  //
 //        throw new RuntimeException("해당 게임방의 참가자가 아닙니다");
 //    }
 
-        chatMessage.setSender(displayName);
+        chatMessage.setSender(email);  // 이메일 전체!
         chatMessage.setType(ChatMessage.MessageType.JOIN);
         chatMessage.setTimestamp(LocalDateTime.now());
 
@@ -66,13 +64,12 @@ public class ChatController {
     @MessageMapping("/chat.leave")
     public void leaveRoom(@Payload ChatMessage chatMessage, Principal principal) {
         String email = principal != null ? principal.getName() : "익명";
-        String displayName = email.split("@")[0];
 
 //    if (!gameRoomService.isParticipant(chatMessage.getRoomId(), email)) {  //
 //        throw new RuntimeException("해당 게임방의 참가자가 아닙니다");
 //    }
 
-        chatMessage.setSender(displayName);
+        chatMessage.setSender(email);  // 이메일 전체!
         chatMessage.setType(ChatMessage.MessageType.LEAVE);
         chatMessage.setTimestamp(LocalDateTime.now());
 
