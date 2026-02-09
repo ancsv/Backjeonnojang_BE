@@ -46,9 +46,6 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
             public Message<?> preSend(Message<?> message, MessageChannel channel) {
                 StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
 
-                // [로그] 현재 들어오는 명령 확인
-                System.out.println("🔔 STOMP Command: " + accessor.getCommand());
-
                 if (StompCommand.CONNECT.equals(accessor.getCommand())) {
                     String token = accessor.getFirstNativeHeader("Authorization");
                     if (token != null && token.startsWith("Bearer ")) {
@@ -56,42 +53,40 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                             token = token.substring(7);
                             String email = jwtProvider.getEmailFromToken(token);
 
-                            // 인증 객체 생성 및 강제 주입
+                            // 1. 시큐리티 컨텍스트 설정
                             UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(email, null, null);
                             accessor.setUser(auth);
-                            System.out.println("✅ 인증 완료: " + email);
+
+                            // 2. [중요] 세션 속성에 이메일 직접 저장 (유실 방지용)
+                            accessor.getSessionAttributes().put("userEmail", email);
+
+                            System.out.println("✅ [연결 승인] 유저: " + email);
                         } catch (Exception e) {
-                            System.out.println("❌ 인증 실패: " + e.getMessage());
+                            System.out.println("❌ [연결 거부] 토큰 에러: " + e.getMessage());
+                            throw new RuntimeException("Auth Error");
                         }
                     }
                 }
-                // WebSocketConfig.java 의 SUBSCRIBE 부분 수정
                 else if (StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
                     String destination = accessor.getDestination();
-
                     if (destination != null && destination.startsWith("/topic/game/")) {
                         String roomId = destination.substring("/topic/game/".length());
 
-                        // 유저 정보가 없으면 '익명'으로 처리
-                        String email = (accessor.getUser() != null) ? accessor.getUser().getName() : "Unknown";
+                        // 세션 속성에서 이메일 꺼내기 (accessor.getUser()가 null일 때를 대비)
+                        String email = (String) accessor.getSessionAttributes().get("userEmail");
 
-                        System.out.println("🔍 [검증] 방ID: " + roomId + " | 이메일: " + email);
-
-                        // [수정] 권한이 없어도 에러를 던지지 않고 로그만 출력!
-                        if (!gameRoomService.isParticipant(roomId, email)) {
-                            System.out.println("❌ [보안] 인가 실패! 세션 종료 시도: " + email);
-
-                            // 1. 강제로 세션 끊기 위한 정보 추출
-                            String sessionId = accessor.getSessionId();
-
-                            // 2. 예외를 던지기 전에 세션 속성이나 상태를 무효화 (가장 확실한 방법)
-                            accessor.setLeaveMutable(true);
-
-                            // 3. 에러 메시지와 함께 예외 던지기
-                            throw new RuntimeException("인가되지 않은 사용자입니다. 연결을 종료합니다.");
-                        }else {
-                            System.out.println("✅ [승인] 정당한 사용자 접속");
+                        if (email == null && accessor.getUser() != null) {
+                            email = accessor.getUser().getName();
                         }
+
+                        System.out.println("🧐 [인가 체크] 방: " + roomId + " | 유저: " + email);
+
+                        // DB 체크
+                        if (email == null || !gameRoomService.isParticipant(roomId, email)) {
+                            System.out.println("🚨 [차단] 비인가 접근! 방: " + roomId + " | 유저: " + email);
+                            throw new RuntimeException("No Permission");
+                        }
+                        System.out.println("⭕ [구독 완료] " + email + " 님이 " + roomId + "에 입장");
                     }
                 }
                 return message;
