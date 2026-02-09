@@ -49,54 +49,40 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
                 if (StompCommand.CONNECT.equals(accessor.getCommand())) {
                     String token = accessor.getFirstNativeHeader("Authorization");
+                    if (token != null && token.startsWith("Bearer ")) {
+                        token = token.substring(7);
+                        try {
+                            String email = jwtProvider.getEmailFromToken(token);
+                            // 💡 세션 속성에 이메일을 명시적으로 저장합니다. (나중에 꺼내기 위해)
+                            accessor.getSessionAttributes().put("userEmail", email);
 
-                    // 토큰 없으면 연결 차단
-                    if (token == null || !token.startsWith("Bearer ")) {
-                        throw new RuntimeException("인증 토큰이 필요합니다");
-                    }
-
-                    token = token.substring(7);
-                    try {
-                        String email = jwtProvider.getEmailFromToken(token);
-                        Long userId = jwtProvider.getUserIdFromToken(token);
-
-                        accessor.setUser(new UsernamePasswordAuthenticationToken(
-                                email, null, null));
-                    } catch (Exception e) {
-//                        throw new RuntimeException("유효하지 않은 토큰입니다");
-                        System.out.println(" [보안로그] 비인가 접근 감지");
+                            accessor.setUser(new UsernamePasswordAuthenticationToken(email, null, null));
+                        } catch (Exception e) {
+                            System.out.println(" [보안로그] 토큰 파싱 에러");
+                        }
                     }
                 }
                 // 구독 시점 보안 (도청 방어 핵심 로직)
                 else if (StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
                     String destination = accessor.getDestination();
-
                     if (destination != null && destination.startsWith("/topic/game/")) {
-                        // 1. roomId 추출 및 공백 제거
                         String roomId = destination.substring("/topic/game/".length()).trim();
 
-                        // 2. 이메일 추출 (세션 속성 우선 확인)
-                        String email = (accessor.getSessionAttributes().get("userEmail") != null)
-                                ? ((String) accessor.getSessionAttributes().get("userEmail")).trim()
-                                : (accessor.getUser() != null ? accessor.getUser().getName().trim() : null);
+                        // 위에서 저장한 세션 속성에서 이메일을 가져옵니다.
+                        String email = (String) accessor.getSessionAttributes().get("userEmail");
 
-                        System.out.println("🧐 [최종대조] 방ID: [" + roomId + "] | 유저: [" + (email != null ? email : "null") + "]");
+                        System.out.println("🧐 [검증 시작] 방: " + roomId + " | 유저: " + email);
 
-                        // 3. 인증 체크
                         if (email == null) {
-                            System.out.println("❌ [차단] 인증 정보가 아예 없음");
                             throw new RuntimeException("인증 정보가 없습니다.");
                         }
 
-                        // 4. 인가 체크 (테스트 계정 통과 + DB 검증 조합)
-                        boolean isMember = gameRoomService.isParticipant(roomId, email);
-
-                        if (email.equals("test2@test.com") || isMember) {
-                            System.out.println("✅ [승인] 정상 사용자 접속: " + email);
+                        // 프리패스 계정이거나 DB에 참여자로 등록되어 있다면 승인
+                        if (email.equals("test2@test.com") || gameRoomService.isParticipant(roomId, email)) {
+                            System.out.println("✅ [승인] : " + email);
                         } else {
-                            // 공격자나 명단에 없는 유저는 여기서 확실히 차단
-                            System.out.println("🚨 [차단] 비인가 접근 시도! 유저: " + email + " | 방: " + roomId);
-                            throw new RuntimeException("구독 권한이 없습니다.");
+                            System.out.println("🚨 [차단] 비인가 유저 : " + email);
+                            throw new RuntimeException("권한이 없습니다.");
                         }
                     }
                 }
