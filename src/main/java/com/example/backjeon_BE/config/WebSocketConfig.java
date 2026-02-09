@@ -62,42 +62,42 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                         }
                     }
                 }
-//                // 구독 시점 보안 (도청 방어 핵심 로직)
-//                else if (StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
-//                    String destination = accessor.getDestination();
-//                    if (destination != null && destination.startsWith("/topic/game/")) {
-//                        String roomId = destination.substring("/topic/game/".length()).trim();
-//
-//                        // 위에서 저장한 세션 속성에서 이메일을 가져옵니다.
-//                        String email = (String) accessor.getSessionAttributes().get("userEmail");
-//
-//                        System.out.println("🧐 [검증 시작] 방: " + roomId + " | 유저: " + email);
-//
-//                        if (email == null) {
-//                            throw new RuntimeException("인증 정보가 없습니다.");
-//                        }
-//                        // 1. 중복을 피하기 위해 이름을 'extractedRoomId'로 변경
-//                        String extractedRoomId = destination.substring("/topic/game/".length()).trim();
-//
-//// 2. 숫자만 추출 (numericId)
-//                        String numericId = extractedRoomId.replaceAll("[^0-9]", "");
-//
-//// 3. 로그 출력 (검증용)
-//                        System.out.println("🧐 [인가 검증] 추출된방: " + extractedRoomId + " -> DB조회ID: " + numericId);
-//
-//// 4. DB 조회 (오직 DB 결과로만 판단)
-//                        boolean isMember = gameRoomService.isParticipant(numericId, email);
-//
-//// 5. 최종 로직: 하드코딩 없이 isMember만 남기기
-//                        if (isMember) {
-//                            System.out.println("✅ [승인] 접속 허용: " + email);
-//                        } else {
-//                            // 이제 attacker가 남의 방(room_1)에 들어오면 여기서 튕깁니다.
-//                            System.out.println("🚨 [차단] 도청 시도 감지: " + email + " | 방: " + extractedRoomId);
-//                            throw new RuntimeException("해당 방에 대한 권한이 없습니다.");
-//                        }
-//                    }
-//                }
+                // 구독 시점 보안 (도청 방어 핵심 로직)
+                else if (StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
+                    String destination = accessor.getDestination();
+                    if (destination != null && destination.startsWith("/topic/game/")) {
+                        String roomId = destination.substring("/topic/game/".length()).trim();
+
+                        // 위에서 저장한 세션 속성에서 이메일을 가져옵니다.
+                        String email = (String) accessor.getSessionAttributes().get("userEmail");
+
+                        System.out.println("🧐 [검증 시작] 방: " + roomId + " | 유저: " + email);
+
+                        if (email == null) {
+                            throw new RuntimeException("인증 정보가 없습니다.");
+                        }
+                        // 1. 중복을 피하기 위해 이름을 'extractedRoomId'로 변경
+                        String extractedRoomId = destination.substring("/topic/game/".length()).trim();
+
+// 2. 숫자만 추출 (numericId)
+                        String numericId = extractedRoomId.replaceAll("[^0-9]", "");
+
+// 3. 로그 출력 (검증용)
+                        System.out.println("🧐 [인가 검증] 추출된방: " + extractedRoomId + " -> DB조회ID: " + numericId);
+
+// 4. DB 조회 (오직 DB 결과로만 판단)
+                        boolean isMember = gameRoomService.isParticipant(numericId, email);
+
+// 5. 최종 로직: 하드코딩 없이 isMember만 남기기
+                        if (isMember) {
+                            System.out.println("✅ [승인] 접속 허용: " + email);
+                        } else {
+                            // 이제 attacker가 남의 방(room_1)에 들어오면 여기서 튕깁니다.
+                            System.out.println("🚨 [차단] 도청 시도 감지: " + email + " | 방: " + extractedRoomId);
+                            throw new RuntimeException("해당 방에 대한 권한이 없습니다.");
+                        }
+                    }
+                }
                 return message;
             }
         });
