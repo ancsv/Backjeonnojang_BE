@@ -23,7 +23,7 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 @RequiredArgsConstructor
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
-    private JwtProvider jwtProvider;
+    private final JwtProvider jwtProvider;
     private final GameRoomService gameRoomService;
 
     @Override
